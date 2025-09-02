@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive US School Districts Map</title>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Arial', sans-serif;
+            background-color: #f0f0f0;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #2c3e50, #3498db);
+            color: white;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .header h1 {
+            margin: 0;
+            font-size: 2.5em;
+            font-weight: bold;
+        }
+        
+        .header p {
+            margin: 10px 0 0 0;
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+        
+        #map {
+            height: 80vh;
+            width: 100%;
+            border: 3px solid #34495e;
+        }
+        
+        .info-panel {
+            position: absolute;
+            top: 120px;
+            right: 20px;
+            width: 300px;
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            z-index: 1000;
+            max-height: 60vh;
+            overflow-y: auto;
+        }
+        
+        .info-panel h3 {
+            margin-top: 0;
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 5px;
+        }
+        
+        .district-item {
+            margin: 8px 0;
+            padding: 8px;
+            background: #f8f9fa;
+            border-radius: 5px;
+            border-left: 4px solid #3498db;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .district-item:hover {
+            background: #e3f2fd;
+            transform: translateX(5px);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .district-item strong {
+            color: #2c3e50;
+        }
+        
+        .legend {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            z-index: 1000;
+        }
+        
+        .legend h4 {
+            margin-top: 0;
+            color: #2c3e50;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin: 5px 0;
+        }
+        
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            margin-right: 10px;
+            border: 2px solid #fff;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+        }
+        
+        .large-district { background-color: #e74c3c; }
+        .medium-district { background-color: #f39c12; }
+        .small-district { background-color: #27ae60; }
+        
+        /* Custom popup styles */
+        .leaflet-popup-content-wrapper {
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            background: linear-gradient(135deg, #ffffff, #f8f9fa);
+        }
+        
+        .popup-content {
+            font-family: Arial, sans-serif;
+            line-height: 1.4;
+            min-width: 250px;
+        }
+        
+        .popup-content h3 {
+            margin: 0 0 10px 0;
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 5px;
+            font-size: 1.1em;
+        }
+        
+        .popup-content p {
+            margin: 5px 0;
+            font-size: 0.9em;
+        }
+        
+        .popup-content strong {
+            color: #2c3e50;
+        }
+        
+        .popup-content a {
+            color: #3498db;
+            text-decoration: none;
+        }
+        
+        .popup-content a:hover {
+            text-decoration: underline;
+        }
+        
+        /* State labels */
+        .state-label {
+            background: rgba(255, 255, 255, 0.8);
+            border: 1px solid #ccc;
+            border-radius: 3px;
+            padding: 2px 5px;
+            font-size: 12px;
+            font-weight: bold;
+            color: #333;
+            text-align: center;
+        }
+        
+        /* Hover instruction */
+        .hover-instruction {
+            position: absolute;
+            top: 120px;
+            left: 20px;
+            background: rgba(52, 73, 94, 0.9);
+            color: white;
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-size: 14px;
+            z-index: 1000;
+            max-width: 200px;
+        }
+        
+        /* Marker pulse animation for better visibility */
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+        
+        .marker-pulse {
+            animation: pulse 2s infinite;
+        }
+        
+        /* Responsive design */
+        @media (max-width: 768px) {
+            .info-panel {
+                position: relative;
+                top: 0;
+                right: 0;
+                width: 100%;
+                margin: 10px;
+                width: calc(100% - 20px);
+            }
+            
+            .hover-instruction {
+                position: relative;
+                top: 0;
+                left: 0;
+                margin: 10px;
+                width: calc(100% - 20px);
+            }
+            
+            #map {
+                height: 60vh;
+            }
+            
+            .header h1 {
+                font-size: 1.8em;
+            }
+            
+            .header p {
+                font-size: 1em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🏫 Interactive US School Districts Map</h1>
+        <p>Explore the 25 Largest School Districts in America</p>
+    </div>
+    
+    <div id="map"></div>
+    
+    <div class="hover-instruction">
+        <strong>💡 Tip:</strong> Hover over any marker to see detailed information about the school district!
+    </div>
+    
+    <div class="info-panel">
+        <h3>📊 Top School Districts</h3>
+        <div id="district-list">
+            <!-- District list will be populated by JavaScript -->
+        </div>
+    </div>
+    
+    <div class="legend">
+        <h4>📍 District Size Legend</h4>
+        <div class="legend-item">
+            <div class="legend-color large-district"></div>
+            <span>Large (500K+ students)</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color medium-district"></div>
+            <span>Medium (200K-500K students)</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color small-district"></div>
+            <span>Small (Under 200K students)</span>
+        </div>
+    </div>
+
+    <!-- Leaflet JavaScript -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <script>
+        // School districts data with improved coordinates to avoid overlapping
+        const schoolDistricts = [
+            {
+                name: "New York City Department of Education",
+                state: "NY",
+                enrollment: 995192,
+                address: "Tweed Courthouse, 52 Chambers Street, New York, NY 10007",
+                phone: "(718) 935-2200",
+                website: "https://www.schools.nyc.gov/",
+                lat: 40.7128,
+                lng: -74.0060
+            },
+            {
+                name: "Los Angeles Unified School District",
+                state: "CA",
+                enrollment: 646683,
+                address: "333 South Beaudry Avenue, Los Angeles, CA 90017",
+                phone: "(213) 241-1000",
+                website: "https://www.lausd.org/",
+                lat: 34.0522,
+                lng: -118.2437
+            },
+            {
+                name: "City of Chicago School District 299",
+                state: "IL",
+                enrollment: 392558,
+                address: "42 W. Madison St., Chicago, IL 60602",
+                phone: "(773) 553-1000",
+                website: "https://www.cps.edu/",
+                lat: 41.8781,
+                lng: -87.6298
+            },
+            {
+                name: "Miami-Dade County Public Schools",
+                state: "FL",
+                enrollment: 356964,
+                address: "1450 NE 2nd Ave, Miami, FL 33132",
+                phone: "(305) 995-1000",
+                website: "https://www.dadeschools.net/",
+                lat: 25.7617,
+                lng: -80.1918
+            },
+            {
+                name: "Clark County School District",
+                state: "NV",
+                enrollment: 324093,
+                address: "5100 West Sahara Avenue, Las Vegas, NV 89146",
+                phone: "(702) 799-5011",
+                website: "https://www.ccsd.net/",
+                lat: 36.1699,
+                lng: -115.1398
+            },
+            {
+                name: "Broward County Public Schools",
+                state: "FL",
+                enrollment: 266265,
+                address: "600 Southeast Third Avenue, Fort Lauderdale, FL 33301",
+                phone: "(754) 321-0000",
+                website: "https://www.browardschools.com/",
+                lat: 26.1224,
+                lng: -80.1373
+            },
+            {
+                name: "Hillsborough County Public Schools",
+                state: "FL",
+                enrollment: 207469,
+                address: "901 East Kennedy Boulevard, Tampa, FL 33602",
+                phone: "(813) 272-4000",
+                website: "https://www.sdhc.k12.fl.us/",
+                lat: 27.9506,
+                lng: -82.4572
+            },
+            {
+                name: "Houston Independent School District",
+                state: "TX",
+                enrollment: 215225,
+                address: "4400 West 18th Street, Houston, TX 77092",
+                phone: "(713) 556-6000",
+                website: "https://www.houstonisd.org/",
+                lat: 29.7604,
+                lng: -95.3698
+            },
+            {
+                name: "Orange County Public Schools",
+                state: "FL",
+                enrollment: 191648,
+                address: "445 West Amelia Street, Orlando, FL 32801",
+                phone: "(407) 317-3200",
+                website: "https://www.ocps.net/",
+                lat: 28.5383,
+                lng: -81.3792
+            },
+            {
+                name: "Palm Beach County School District",
+                state: "FL",
+                enrollment: 186605,
+                address: "3300 Forest Hill Boulevard, West Palm Beach, FL 33406",
+                phone: "(561) 434-8000",
+                website: "https://www.palmbeachschools.org/",
+                lat: 26.7153,
+                lng: -80.0534
+            },
+            {
+                name: "Fairfax County Public Schools",
+                state: "VA",
+                enrollment: 185541,
+                address: "8115 Gatehouse Road, Falls Church, VA 22042",
+                phone: "(571) 423-1200",
+                website: "https://www.fcps.edu/",
+                lat: 38.8816,
+                lng: -77.2297
+            },
+            {
+                name: "Hawaii Department of Education",
+                state: "HI",
+                enrollment: 182384,
+                address: "1390 Miller Street, Honolulu, HI 96813",
+                phone: "(808) 586-3230",
+                website: "https://www.hawaiipublicschools.org/",
+                lat: 21.3099,
+                lng: -157.8581
+            },
+            {
+                name: "Gwinnett County Public Schools",
+                state: "GA",
+                enrollment: 173246,
+                address: "437 Old Peachtree Road NW, Suwanee, GA 30024",
+                phone: "(678) 301-6000",
+                website: "https://www.gcpsk12.org/",
+                lat: 34.0515,
+                lng: -84.0719
+            },
+            {
+                name: "Montgomery County Public Schools",
+                state: "MD",
+                enrollment: 154434,
+                address: "850 Hungerford Drive, Rockville, MD 20850",
+                phone: "(240) 740-3000",
+                website: "https://www.montgomeryschoolsmd.org/",
+                lat: 39.0840,
+                lng: -77.1528
+            },
+            {
+                name: "Wake County Public School System",
+                state: "NC",
+                enrollment: 155820,
+                address: "5625 Dillard Drive, Cary, NC 27518",
+                phone: "(919) 431-7400",
+                website: "https://www.wcpss.net/",
+                lat: 35.7796,
+                lng: -78.7811
+            },
+            {
+                name: "Dallas Independent School District",
+                state: "TX",
+                enrollment: 160253,
+                address: "9400 North Central Expressway, Dallas, TX 75231",
+                phone: "(972) 925-3700",
+                website: "https://www.dallasisd.org/",
+                lat: 32.7767,
+                lng: -96.7970
+            },
+            {
+                name: "Charlotte-Mecklenburg Schools",
+                state: "NC",
+                enrollment: 145636,
+                address: "2800 West Tyvola Road, Charlotte, NC 28217",
+                phone: "(980) 343-5000",
+                website: "https://www.cms.k12.nc.us/",
+                lat: 35.2271,
+                lng: -80.8431
+            },
+            {
+                name: "Prince George's County Public Schools",
+                state: "MD",
+                enrollment: 127576,
+                address: "14201 School Lane, Upper Marlboro, MD 20772",
+                phone: "(301) 952-6000",
+                website: "https://www.pgcps.org/",
+                lat: 38.8157,
+                lng: -76.7494
+            },
+            {
+                name: "School District of Philadelphia",
+                state: "PA",
+                enrollment: 134241,
+                address: "440 North Broad Street, Philadelphia, PA 19130",
+                phone: "(215) 400-4000",
+                website: "https://www.philasd.org/",
+                lat: 39.9526,
+                lng: -75.1652
+            },
+            {
+                name: "Duval County Public Schools",
+                state: "FL",
+                enrollment: 128685,
+                address: "1701 Prudential Drive, Jacksonville, FL 32207",
+                phone: "(904) 390-2000",
+                website: "https://www.duvalschools.org/",
+                lat: 30.3322,
+                lng: -81.6557
+            },
+            {
+                name: "Cypress-Fairbanks Independent School District",
+                state: "TX",
+                enrollment: 113023,
+                address: "10300 Northwest Freeway, Houston, TX 77092",
+                phone: "(281) 897-4000",
+                website: "https://www.cfisd.net/",
+                lat: 29.8746,
+                lng: -95.5621
+            },
+            {
+                name: "Baltimore County Public Schools",
+                state: "MD",
+                enrollment: 109830,
+                address: "6901 Charles Street, Towson, MD 21204",
+                phone: "(443) 809-5000",
+                website: "https://www.bcps.org/",
+                lat: 39.4040,
+                lng: -76.6105
+            },
+            {
+                name: "Shelby County Schools",
+                state: "TN",
+                enrollment: 115810,
+                address: "160 South Hollywood Street, Memphis, TN 38112",
+                phone: "(901) 416-5300",
+                website: "https://www.scsk12.org/",
+                lat: 35.1495,
+                lng: -90.0490
+            },
+            {
+                name: "Cobb County School District",
+                state: "GA",
+                enrollment: 111751,
+                address: "514 Glover Street, Marietta, GA 30060",
+                phone: "(770) 426-3300",
+                website: "https://www.cobbk12.org/",
+                lat: 33.9526,
+                lng: -84.5499
+            },
+            {
+                name: "Northside Independent School District",
+                state: "TX",
+                enrollment: 103606,
+                address: "5900 Evers Road, San Antonio, TX 78238",
+                phone: "(210) 397-8500",
+                website: "https://www.nisd.net/",
+                lat: 29.4241,
+                lng: -98.4936
+            }
+        ];
+
+        // US State coordinates for labels
+        const stateLabels = [
+            {name: "AL", lat: 32.806671, lng: -86.791130},
+            {name: "AZ", lat: 33.729759, lng: -111.431221},
+            {name: "AR", lat: 34.969704, lng: -92.373123},
+            {name: "CA", lat: 36.116203, lng: -119.681564},
+            {name: "CO", lat: 39.059811, lng: -105.311104},
+            {name: "CT", lat: 41.767, lng: -72.677},
+            {name: "DE", lat: 39.161921, lng: -75.526755},
+            {name: "FL", lat: 27.4518, lng: -82.4572},
+            {name: "GA", lat: 32.9866, lng: -83.6487},
+            {name: "ID", lat: 44.240459, lng: -114.478828},
+            {name: "IL", lat: 40.349457, lng: -88.986137},
+            {name: "IN", lat: 39.790942, lng: -86.147685},
+            {name: "IA", lat: 42.011539, lng: -93.210526},
+            {name: "KS", lat: 38.572954, lng: -98.580480},
+            {name: "KY", lat: 37.669037, lng: -84.670067},
+            {name: "LA", lat: 31.1801, lng: -91.8749},
+            {name: "ME", lat: 44.323535, lng: -69.765261},
+            {name: "MD", lat: 39.063946, lng: -76.802101},
+            {name: "MA", lat: 42.230171, lng: -71.530106},
+            {name: "MI", lat: 43.326618, lng: -84.536095},
+            {name: "MN", lat: 45.7326, lng: -93.9196},
+            {name: "MS", lat: 32.320, lng: -89.207},
+            {name: "MO", lat: 38.572954, lng: -92.189283},
+            {name: "MT", lat: 47.052952, lng: -109.633040},
+            {name: "NE", lat: 41.590939, lng: -99.675285},
+            {name: "NV", lat: 38.4199, lng: -117.1219},
+            {name: "NH", lat: 43.452492, lng: -71.563896},
+            {name: "NJ", lat: 40.221741, lng: -74.756138},
+            {name: "NM", lat: 34.307144, lng: -106.018066},
+            {name: "NY", lat: 42.659829, lng: -75.615},
+            {name: "NC", lat: 35.771, lng: -78.638},
+            {name: "ND", lat: 47.617, lng: -101.002},
+            {name: "OH", lat: 40.367474, lng: -82.996216},
+            {name: "OK", lat: 35.482309, lng: -97.534994},
+            {name: "OR", lat: 44.931109, lng: -123.029159},
+            {name: "PA", lat: 40.269789, lng: -76.875613},
+            {name: "RI", lat: 41.82355, lng: -71.422132},
+            {name: "SC", lat: 33.836082, lng: -81.163727},
+            {name: "SD", lat: 44.367966, lng: -99.901813},
+            {name: "TN", lat: 35.771, lng: -86.282},
+            {name: "TX", lat: 31.106, lng: -97.6475},
+            {name: "UT", lat: 39.161921, lng: -111.892622},
+            {name: "VT", lat: 44.26639, lng: -72.580536},
+            {name: "VA", lat: 37.54, lng: -78.86},
+            {name: "WA", lat: 47.042418, lng: -122.893077},
+            {name: "WV", lat: 38.349497, lng: -81.633294},
+            {name: "WI", lat: 44.268543, lng: -89.616508},
+            {name: "WY", lat: 42.906847, lng: -107.556085}
+        ];
+
+        // Initialize the map
+        const map = L.map('map').setView([39.8283, -98.5795], 4);
+
+        // Add tile layer
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+
+        // Function to get marker color based on enrollment
+        function getMarkerColor(enrollment) {
+            if (enrollment >= 500000) return '#e74c3c'; // Red for large
+            if (enrollment >= 200000) return '#f39c12'; // Orange for medium
+            return '#27ae60'; // Green for small
+        }
+
+        // Function to format enrollment number
+        function formatEnrollment(num) {
+            return num.toLocaleString();
+        }
+
+        // Function to avoid overlapping markers
+        function adjustCoordinatesForOverlap(districts) {
+            const adjustedDistricts = [...districts];
+            const minDistance = 0.5; // Minimum distance between markers in degrees
+            
+            for (let i = 0; i < adjustedDistricts.length; i++) {
+                for (let j = i + 1; j < adjustedDistricts.length; j++) {
+                    const dist1 = adjustedDistricts[i];
+                    const dist2 = adjustedDistricts[j];
+                    
+                    const distance = Math.sqrt(
+                        Math.pow(dist1.lat - dist2.lat, 2) + 
+                        Math.pow(dist1.lng - dist2.lng, 2)
+                    );
+                    
+                    if (distance < minDistance) {
+                        // Adjust the second marker's position slightly
+                        const angle = Math.random() * 2 * Math.PI;
+                        const offset = minDistance * 0.7;
+                        adjustedDistricts[j].lat += Math.sin(angle) * offset;
+                        adjustedDistricts[j].lng += Math.cos(angle) * offset;
+                    }
+                }
+            }
+            
+            return adjustedDistricts;
+        }
+
+        // Adjust coordinates to prevent overlapping
+        const adjustedDistricts = adjustCoordinatesForOverlap(schoolDistricts);
+
+        // Add school district markers with hover popups
+        adjustedDistricts.forEach((district, index) => {
+            const color = getMarkerColor(district.enrollment);
+            
+            const marker = L.circleMarker([district.lat, district.lng], {
+                radius: Math.max(10, Math.min(25, district.enrollment / 40000)),
+                fillColor: color,
+                color: '#fff',
+                weight: 3,
+                opacity: 1,
+                fillOpacity: 0.8
+            }).addTo(map);
+
+            // Create popup content
+            const popupContent = `
+                <div class="popup-content">
+                    <h3>${district.name}</h3>
+                    <p><strong>📍 Address:</strong> ${district.address}</p>
+                    <p><strong>📞 Phone:</strong> ${district.phone}</p>
+                    <p><strong>🌐 Website:</strong> <a href="${district.website}" target="_blank">${district.website}</a></p>
+                    <p><strong>👥 Enrollment:</strong> ${formatEnrollment(district.enrollment)} students</p>
+                    <p><strong>🏛️ State:</strong> ${district.state}</p>
+                    <p><strong>📊 Rank:</strong> #${index + 1} largest in the US</p>
+                </div>
+            `;
+
+            // Bind popup to marker
+            marker.bindPopup(popupContent, {
+                maxWidth: 300,
+                className: 'custom-popup',
+                closeButton: false,
+                autoClose: true,
+                closeOnEscapeKey: true
+            });
+
+            // Add hover events for popup
+            marker.on('mouseover', function(e) {
+                // Visual hover effect
+                this.setStyle({
+                    weight: 5,
+                    fillOpacity: 1,
+                    radius: this.options.radius * 1.2
+                });
+                
+                // Open popup on hover
+                this.openPopup();
+            });
+
+            marker.on('mouseout', function(e) {
+                // Reset visual style
+                this.setStyle({
+                    weight: 3,
+                    fillOpacity: 0.8,
+                    radius: this.options.radius / 1.2
+                });
+                
+                // Close popup when mouse leaves
+                setTimeout(() => {
+                    this.closePopup();
+                }, 100); // Small delay to prevent flickering
+            });
+
+            // Store reference for list clicking
+            marker.districtIndex = index;
+        });
+
+        // Add state labels
+        stateLabels.forEach(state => {
+            L.marker([state.lat, state.lng], {
+                icon: L.divIcon({
+                    className: 'state-label',
+                    html: state.name,
+                    iconSize: [30, 20],
+                    iconAnchor: [15, 10]
+                })
+            }).addTo(map);
+        });
+
+        // Populate district list in info panel
+        function populateDistrictList() {
+            const districtList = document.getElementById('district-list');
+            
+            // Sort districts by enrollment (descending)
+            const sortedDistricts = [...schoolDistricts].sort((a, b) => b.enrollment - a.enrollment);
+            
+            sortedDistricts.forEach((district, index) => {
+                const districtItem = document.createElement('div');
+                districtItem.className = 'district-item';
+                districtItem.innerHTML = `
+                    <strong>${index + 1}. ${district.name}</strong><br>
+                    <small>${district.state} • ${formatEnrollment(district.enrollment)} students</small>
+                `;
+                
+                // Add click event to zoom to district
+                districtItem.addEventListener('click', () => {
+                    map.setView([district.lat, district.lng], 10);
+                    
+                    // Find and trigger hover on the corresponding marker
+                    map.eachLayer(layer => {
+                        if (layer instanceof L.CircleMarker && layer.districtIndex === index) {
+                            layer.fire('mouseover');
+                            setTimeout(() => {
+                                layer.fire('mouseout');
+                            }, 3000); // Show popup for 3 seconds
+                        }
+                    });
+                });
+                
+                // Add hover effect to list items
+                districtItem.addEventListener('mouseenter', () => {
+                    // Find and highlight the corresponding marker
+                    map.eachLayer(layer => {
+                        if (layer instanceof L.CircleMarker && layer.districtIndex === index) {
+                            layer.setStyle({
+                                weight: 5,
+                                fillOpacity: 1,
+                                radius: layer.options.radius * 1.3
+                            });
+                        }
+                    });
+                });
+                
+                districtItem.addEventListener('mouseleave', () => {
+                    // Reset marker style
+                    map.eachLayer(layer => {
+                        if (layer instanceof L.CircleMarker && layer.districtIndex === index) {
+                            layer.setStyle({
+                                weight: 3,
+                                fillOpacity: 0.8,
+                                radius: layer.options.radius / 1.3
+                            });
+                        }
+                    });
+                });
+                
+                districtList.appendChild(districtItem);
+            });
+        }
+
+        // Initialize district list
+        populateDistrictList();
+
+        // Add zoom controls
+        map.zoomControl.setPosition('topright');
+
+        // Add scale
+        L.control.scale().addTo(map);
+
+        // Add a marker count verification
+        console.log('Interactive School Districts Map with Hover Popups loaded successfully!');
+        console.log(`Displaying ${schoolDistricts.length} school districts`);
+        console.log('Hover over any marker to see detailed information!');
+    </script>
+</body>
+</html>
+
