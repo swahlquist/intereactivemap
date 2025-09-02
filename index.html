@@ -1,44 +1,1514 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Interactive US School Districts Map</title>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <style>
-    html, body {
-      margin: 0;
-      padding: 0;
-      height: 100%;
-      font-family: 'Arial', sans-serif;
-      background-color: #f0f0f0;
-    }
-    #map {
-      height: 100vh;
-      width: 100%;
-      border: none;
-    }
-    /* You can include your existing styles here for header, legend, info-panel, etc. */
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>US School Districts Language Demographics Map</title>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Arial', sans-serif;
+            background-color: #f0f0f0;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #2c3e50, #3498db);
+            color: white;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .header h1 {
+            margin: 0;
+            font-size: 2.5em;
+            font-weight: bold;
+        }
+        
+        .header p {
+            margin: 10px 0 0 0;
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+        
+        #map {
+            height: 75vh;
+            width: 100%;
+            border: 3px solid #34495e;
+        }
+        
+        .controls-panel {
+            position: absolute;
+            top: 120px;
+            left: 20px;
+            width: 280px;
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            z-index: 1000;
+            max-height: 60vh;
+            overflow-y: auto;
+        }
+        
+        .controls-panel h3 {
+            margin-top: 0;
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 5px;
+        }
+        
+        .language-filter {
+            margin: 10px 0;
+        }
+        
+        .language-filter select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        
+        .filter-buttons {
+            display: flex;
+            gap: 5px;
+            margin: 10px 0;
+            flex-wrap: wrap;
+        }
+        
+        .filter-btn {
+            padding: 5px 10px;
+            border: 1px solid #3498db;
+            background: white;
+            color: #3498db;
+            border-radius: 15px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.3s;
+        }
+        
+        .filter-btn:hover, .filter-btn.active {
+            background: #3498db;
+            color: white;
+        }
+        
+        .clear-filters {
+            background: #e74c3c;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            width: 100%;
+            margin: 10px 0;
+        }
+        
+        .info-panel {
+            position: absolute;
+            top: 120px;
+            right: 20px;
+            width: 300px;
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            z-index: 1000;
+            max-height: 60vh;
+            overflow-y: auto;
+        }
+        
+        .info-panel h3 {
+            margin-top: 0;
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 5px;
+        }
+        
+        .district-item {
+            margin: 8px 0;
+            padding: 8px;
+            background: #f8f9fa;
+            border-radius: 5px;
+            border-left: 4px solid #3498db;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .district-item:hover {
+            background: #e3f2fd;
+            transform: translateX(5px);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .district-item strong {
+            color: #2c3e50;
+        }
+        
+        .district-item.hidden {
+            display: none;
+        }
+        
+        .legend {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            z-index: 1000;
+        }
+        
+        .legend h4 {
+            margin-top: 0;
+            color: #2c3e50;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin: 5px 0;
+        }
+        
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            margin-right: 10px;
+            border: 2px solid #fff;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+        }
+        
+        .large-district { background-color: #e74c3c; }
+        .medium-district { background-color: #f39c12; }
+        .small-district { background-color: #27ae60; }
+        .language-district { background-color: #9b59b6; }
+        
+        /* Custom popup styles */
+        .leaflet-popup-content-wrapper {
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            background: linear-gradient(135deg, #ffffff, #f8f9fa);
+        }
+        
+        .popup-content {
+            font-family: Arial, sans-serif;
+            line-height: 1.4;
+            min-width: 300px;
+        }
+        
+        .popup-content h3 {
+            margin: 0 0 10px 0;
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 5px;
+            font-size: 1.1em;
+        }
+        
+        .popup-content p {
+            margin: 5px 0;
+            font-size: 0.9em;
+        }
+        
+        .popup-content strong {
+            color: #2c3e50;
+        }
+        
+        .popup-content a {
+            color: #3498db;
+            text-decoration: none;
+        }
+        
+        .popup-content a:hover {
+            text-decoration: underline;
+        }
+        
+        .language-info {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            border-left: 4px solid #3498db;
+        }
+        
+        .language-list {
+            font-size: 0.85em;
+            margin: 5px 0;
+        }
+        
+        /* State labels */
+        .state-label {
+            background: rgba(255, 255, 255, 0.8);
+            border: 1px solid #ccc;
+            border-radius: 3px;
+            padding: 2px 5px;
+            font-size: 12px;
+            font-weight: bold;
+            color: #333;
+            text-align: center;
+        }
+        
+        /* Hover instruction */
+        .hover-instruction {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(52, 73, 94, 0.9);
+            color: white;
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-size: 14px;
+            z-index: 1000;
+            max-width: 200px;
+        }
+        
+        /* Responsive design */
+        @media (max-width: 768px) {
+            .controls-panel, .info-panel {
+                position: relative;
+                top: 0;
+                left: 0;
+                right: 0;
+                width: calc(100% - 20px);
+                margin: 10px;
+            }
+            
+            .hover-instruction {
+                position: relative;
+                bottom: 0;
+                right: 0;
+                margin: 10px;
+                width: calc(100% - 20px);
+            }
+            
+            #map {
+                height: 50vh;
+            }
+            
+            .header h1 {
+                font-size: 1.8em;
+            }
+            
+            .header p {
+                font-size: 1em;
+            }
+        }
+    </style>
 </head>
 <body>
-  <div id="map"></div>
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script>
-    const map = L.map('map').setView([39.8283, -98.5795], 4);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '© OpenStreetMap contributors'
-    }).addTo(map);
+    <div class="header">
+        <h1>🌍 US School Districts Language Demographics Map</h1>
+        <p>Explore Language Diversity in America's Largest School Districts</p>
+    </div>
+    
+    <div id="map"></div>
+    
+    <div class="controls-panel">
+        <h3>🔍 Language Filters</h3>
+        <div class="language-filter">
+            <select id="languageSelect">
+                <option value="">Select a language to highlight</option>
+                <option value="chinese">Chinese (Mandarin/Cantonese)</option>
+                <option value="vietnamese">Vietnamese</option>
+                <option value="tagalog">Tagalog/Filipino</option>
+                <option value="arabic">Arabic</option>
+                <option value="korean">Korean</option>
+                <option value="russian">Russian</option>
+                <option value="french">French/Haitian Creole</option>
+                <option value="spanish">Spanish</option>
+                <option value="bengali">Bengali</option>
+                <option value="urdu">Urdu</option>
+                <option value="armenian">Armenian</option>
+                <option value="khmer">Khmer/Cambodian</option>
+                <option value="portuguese">Portuguese</option>
+                <option value="amharic">Amharic</option>
+            </select>
+        </div>
+        <div class="filter-buttons">
+            <div class="filter-btn" data-language="vietnamese">Vietnamese</div>
+            <div class="filter-btn" data-language="chinese">Chinese</div>
+            <div class="filter-btn" data-language="arabic">Arabic</div>
+            <div class="filter-btn" data-language="korean">Korean</div>
+            <div class="filter-btn" data-language="tagalog">Tagalog</div>
+            <div class="filter-btn" data-language="russian">Russian</div>
+        </div>
+        <button class="clear-filters" onclick="clearAllFilters()">Clear All Filters</button>
+        <div id="filter-results" style="margin-top: 10px; font-size: 14px; color: #666;"></div>
+    </div>
+    
+    <div class="info-panel">
+        <h3>📊 School Districts</h3>
+        <div id="district-list">
+            <!-- District list will be populated by JavaScript -->
+        </div>
+    </div>
+    
+    <div class="legend">
+        <h4>📍 District Legend</h4>
+        <div class="legend-item">
+            <div class="legend-color large-district"></div>
+            <span>Large (500K+ students)</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color medium-district"></div>
+            <span>Medium (200K-500K students)</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color small-district"></div>
+            <span>Small (Under 200K students)</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color language-district"></div>
+            <span>Language-Focused Districts</span>
+        </div>
+    </div>
+    
+    <div class="hover-instruction">
+        <strong>💡 Tip:</strong> Hover over markers for details, use language filters to find specific communities!
+    </div>
 
-    // Example marker
-    L.circleMarker([40.7128, -74.0060], {
-      radius: 15,
-      fillColor: '#e74c3c',
-      color: '#fff',
-      weight: 2,
-      opacity: 1,
-      fillOpacity: 0.8
-    }).bindPopup("<strong>New York City DOE</strong><br>Enrollment: 995,192").addTo(map);
-  </script>
+    <!-- Leaflet JavaScript -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <script>
+        // Enhanced school districts data with language information
+        const schoolDistricts = [
+            // Original 25 largest districts with enhanced language data
+            {
+                name: "New York City Department of Education",
+                state: "NY",
+                enrollment: 995192,
+                address: "Tweed Courthouse, 52 Chambers Street, New York, NY 10007",
+                phone: "(718) 935-2200",
+                website: "https://www.schools.nyc.gov/",
+                lat: 40.7128,
+                lng: -74.0060,
+                type: "large",
+                languages: {
+                    spanish: { students: 117829, percentage: 67.4 },
+                    chinese: { students: 15863, percentage: 9.12 },
+                    arabic: { students: 7172, percentage: 4.12 },
+                    russian: { students: 6723, percentage: 3.86 },
+                    bengali: { students: 5753, percentage: 3.31 },
+                    french: { students: 3053, percentage: 1.75 },
+                    urdu: { students: 1853, percentage: 1.06 }
+                },
+                totalELL: 174014,
+                totalLanguages: 156
+            },
+            {
+                name: "Los Angeles Unified School District",
+                state: "CA",
+                enrollment: 646683,
+                address: "333 South Beaudry Avenue, Los Angeles, CA 90017",
+                phone: "(213) 241-1000",
+                website: "https://www.lausd.org/",
+                lat: 34.0522,
+                lng: -118.2437,
+                type: "large",
+                languages: {
+                    spanish: { students: 145798, percentage: 92.5 },
+                    armenian: { students: 1734, percentage: 1.1 },
+                    korean: { students: 1576, percentage: 1.0 },
+                    tagalog: { students: 1200, percentage: 0.8 },
+                    chinese: { students: 1100, percentage: 0.7 },
+                    arabic: { students: 1000, percentage: 0.6 },
+                    vietnamese: { students: 950, percentage: 0.6 },
+                    russian: { students: 900, percentage: 0.6 }
+                },
+                totalELL: 157619,
+                totalLanguages: 94,
+                programs: ["Arabic", "Armenian", "French", "Korean", "Mandarin", "Japanese"]
+            },
+            {
+                name: "City of Chicago School District 299",
+                state: "IL",
+                enrollment: 392558,
+                address: "42 W. Madison St., Chicago, IL 60602",
+                phone: "(773) 553-1000",
+                website: "https://www.cps.edu/",
+                lat: 41.8781,
+                lng: -87.6298,
+                type: "medium",
+                languages: {
+                    spanish: { students: 65000, percentage: 85 },
+                    arabic: { students: 3000, percentage: 4 },
+                    chinese: { students: 2500, percentage: 3 },
+                    polish: { students: 2000, percentage: 2.5 }
+                },
+                totalELL: 76500,
+                totalLanguages: 150
+            },
+            {
+                name: "Miami-Dade County Public Schools",
+                state: "FL",
+                enrollment: 356964,
+                address: "1450 NE 2nd Ave, Miami, FL 33132",
+                phone: "(305) 995-1000",
+                website: "https://www.dadeschools.net/",
+                lat: 25.7617,
+                lng: -80.1918,
+                type: "medium",
+                languages: {
+                    spanish: { students: 180000, percentage: 75 },
+                    french: { students: 25000, percentage: 10.4 },
+                    portuguese: { students: 8000, percentage: 3.3 }
+                },
+                totalELL: 240000,
+                totalLanguages: 90,
+                programs: ["Haitian Creole Bilingual Education"]
+            },
+            {
+                name: "Clark County School District",
+                state: "NV",
+                enrollment: 324093,
+                address: "5100 West Sahara Avenue, Las Vegas, NV 89146",
+                phone: "(702) 799-5011",
+                website: "https://www.ccsd.net/",
+                lat: 36.1699,
+                lng: -115.1398,
+                type: "medium",
+                languages: {
+                    spanish: { students: 85000, percentage: 80 },
+                    tagalog: { students: 8000, percentage: 7.5 },
+                    chinese: { students: 4000, percentage: 3.8 }
+                },
+                totalELL: 106250,
+                totalLanguages: 180
+            },
+            {
+                name: "Broward County Public Schools",
+                state: "FL",
+                enrollment: 266265,
+                address: "600 Southeast Third Avenue, Fort Lauderdale, FL 33301",
+                phone: "(754) 321-0000",
+                website: "https://www.browardschools.com/",
+                lat: 26.1224,
+                lng: -80.1373,
+                type: "medium",
+                languages: {
+                    spanish: { students: 45000, percentage: 65 },
+                    french: { students: 15000, percentage: 21.7 },
+                    portuguese: { students: 5000, percentage: 7.2 }
+                },
+                totalELL: 69200,
+                totalLanguages: 170
+            },
+            {
+                name: "Houston Independent School District",
+                state: "TX",
+                enrollment: 215225,
+                address: "4400 West 18th Street, Houston, TX 77092",
+                phone: "(713) 556-6000",
+                website: "https://www.houstonisd.org/",
+                lat: 29.7604,
+                lng: -95.3698,
+                type: "medium",
+                languages: {
+                    spanish: { students: 65000, percentage: 88.5 },
+                    vietnamese: { students: 4000, percentage: 5.4 },
+                    arabic: { students: 2500, percentage: 3.4 },
+                    chinese: { students: 2000, percentage: 2.7 }
+                },
+                totalELL: 73440,
+                totalLanguages: 100,
+                programs: ["Vietnamese", "Arabic", "Mandarin"]
+            },
+            {
+                name: "Hillsborough County Public Schools",
+                state: "FL",
+                enrollment: 207469,
+                address: "901 East Kennedy Boulevard, Tampa, FL 33602",
+                phone: "(813) 272-4000",
+                website: "https://www.sdhc.k12.fl.us/",
+                lat: 27.9506,
+                lng: -82.4572,
+                type: "medium",
+                languages: {
+                    spanish: { students: 35000, percentage: 85 },
+                    french: { students: 3000, percentage: 7.3 },
+                    arabic: { students: 1500, percentage: 3.6 }
+                },
+                totalELL: 41200,
+                totalLanguages: 120
+            },
+            {
+                name: "Orange County Public Schools",
+                state: "FL",
+                enrollment: 191648,
+                address: "445 West Amelia Street, Orlando, FL 32801",
+                phone: "(407) 317-3200",
+                website: "https://www.ocps.net/",
+                lat: 28.5383,
+                lng: -81.3792,
+                type: "small",
+                languages: {
+                    spanish: { students: 32000, percentage: 82 },
+                    french: { students: 4000, percentage: 10.3 },
+                    portuguese: { students: 2000, percentage: 5.1 }
+                },
+                totalELL: 39000,
+                totalLanguages: 150
+            },
+            {
+                name: "Palm Beach County School District",
+                state: "FL",
+                enrollment: 186605,
+                address: "3300 Forest Hill Boulevard, West Palm Beach, FL 33406",
+                phone: "(561) 434-8000",
+                website: "https://www.palmbeachschools.org/",
+                lat: 26.7153,
+                lng: -80.0534,
+                type: "small",
+                languages: {
+                    spanish: { students: 28000, percentage: 75 },
+                    french: { students: 6000, percentage: 16.1 },
+                    portuguese: { students: 2500, percentage: 6.7 }
+                },
+                totalELL: 37300,
+                totalLanguages: 140
+            },
+            {
+                name: "Fairfax County Public Schools",
+                state: "VA",
+                enrollment: 185541,
+                address: "8115 Gatehouse Road, Falls Church, VA 22042",
+                phone: "(571) 423-1200",
+                website: "https://www.fcps.edu/",
+                lat: 38.8816,
+                lng: -77.2297,
+                type: "small",
+                languages: {
+                    spanish: { students: 25000, percentage: 60 },
+                    arabic: { students: 2625, percentage: 6.3 },
+                    vietnamese: { students: 1292, percentage: 3.1 },
+                    korean: { students: 1200, percentage: 2.9 },
+                    urdu: { students: 1000, percentage: 2.4 }
+                },
+                totalELL: 41650,
+                totalLanguages: 200
+            },
+            {
+                name: "Hawaii Department of Education",
+                state: "HI",
+                enrollment: 182384,
+                address: "1390 Miller Street, Honolulu, HI 96813",
+                phone: "(808) 586-3230",
+                website: "https://www.hawaiipublicschools.org/",
+                lat: 21.3099,
+                lng: -157.8581,
+                type: "small",
+                languages: {
+                    tagalog: { students: 8000, percentage: 35 },
+                    chinese: { students: 4500, percentage: 19.6 },
+                    japanese: { students: 3500, percentage: 15.2 },
+                    korean: { students: 2500, percentage: 10.9 }
+                },
+                totalELL: 23000,
+                totalLanguages: 80
+            },
+            {
+                name: "Gwinnett County Public Schools",
+                state: "GA",
+                enrollment: 173246,
+                address: "437 Old Peachtree Road NW, Suwanee, GA 30024",
+                phone: "(678) 301-6000",
+                website: "https://www.gcpsk12.org/",
+                lat: 34.0515,
+                lng: -84.0719,
+                type: "small",
+                languages: {
+                    spanish: { students: 35000, percentage: 70 },
+                    korean: { students: 6000, percentage: 12 },
+                    vietnamese: { students: 4000, percentage: 8 },
+                    chinese: { students: 3000, percentage: 6 }
+                },
+                totalELL: 50000,
+                totalLanguages: 140
+            },
+            {
+                name: "Dallas Independent School District",
+                state: "TX",
+                enrollment: 160253,
+                address: "9400 North Central Expressway, Dallas, TX 75231",
+                phone: "(972) 925-3700",
+                website: "https://www.dallasisd.org/",
+                lat: 32.7767,
+                lng: -96.7970,
+                type: "small",
+                languages: {
+                    spanish: { students: 85000, percentage: 88 },
+                    vietnamese: { students: 4500, percentage: 4.7 },
+                    arabic: { students: 3500, percentage: 3.6 },
+                    somali: { students: 2000, percentage: 2.1 }
+                },
+                totalELL: 96500,
+                totalLanguages: 70
+            },
+            {
+                name: "Wake County Public School System",
+                state: "NC",
+                enrollment: 155820,
+                address: "5625 Dillard Drive, Cary, NC 27518",
+                phone: "(919) 431-7400",
+                website: "https://www.wcpss.net/",
+                lat: 35.7796,
+                lng: -78.7811,
+                type: "small",
+                languages: {
+                    spanish: { students: 18000, percentage: 75 },
+                    chinese: { students: 2400, percentage: 10 },
+                    vietnamese: { students: 1800, percentage: 7.5 },
+                    korean: { students: 1200, percentage: 5 }
+                },
+                totalELL: 24000,
+                totalLanguages: 120
+            },
+            {
+                name: "Montgomery County Public Schools",
+                state: "MD",
+                enrollment: 154434,
+                address: "850 Hungerford Drive, Rockville, MD 20850",
+                phone: "(240) 740-3000",
+                website: "https://www.montgomeryschoolsmd.org/",
+                lat: 39.0840,
+                lng: -77.1528,
+                type: "small",
+                languages: {
+                    spanish: { students: 20000, percentage: 62.5 },
+                    chinese: { students: 4000, percentage: 12.5 },
+                    vietnamese: { students: 2400, percentage: 7.5 },
+                    korean: { students: 1600, percentage: 5 },
+                    arabic: { students: 1280, percentage: 4 }
+                },
+                totalELL: 32000,
+                totalLanguages: 167
+            },
+            {
+                name: "Charlotte-Mecklenburg Schools",
+                state: "NC",
+                enrollment: 145636,
+                address: "2800 West Tyvola Road, Charlotte, NC 28217",
+                phone: "(980) 343-5000",
+                website: "https://www.cms.k12.nc.us/",
+                lat: 35.2271,
+                lng: -80.8431,
+                type: "small",
+                languages: {
+                    spanish: { students: 22000, percentage: 78.6 },
+                    vietnamese: { students: 2800, percentage: 10 },
+                    chinese: { students: 1400, percentage: 5 },
+                    korean: { students: 1120, percentage: 4 }
+                },
+                totalELL: 28000,
+                totalLanguages: 180
+            },
+            {
+                name: "School District of Philadelphia",
+                state: "PA",
+                enrollment: 134241,
+                address: "440 North Broad Street, Philadelphia, PA 19130",
+                phone: "(215) 400-4000",
+                website: "https://www.philasd.org/",
+                lat: 39.9526,
+                lng: -75.1652,
+                type: "small",
+                languages: {
+                    spanish: { students: 15000, percentage: 75 },
+                    chinese: { students: 2000, percentage: 10 },
+                    vietnamese: { students: 1200, percentage: 6 },
+                    arabic: { students: 1000, percentage: 5 }
+                },
+                totalELL: 20000,
+                totalLanguages: 100
+            },
+            {
+                name: "Duval County Public Schools",
+                state: "FL",
+                enrollment: 128685,
+                address: "1701 Prudential Drive, Jacksonville, FL 32207",
+                phone: "(904) 390-2000",
+                website: "https://www.duvalschools.org/",
+                lat: 30.3322,
+                lng: -81.6557,
+                type: "small",
+                languages: {
+                    spanish: { students: 12000, percentage: 80 },
+                    arabic: { students: 1500, percentage: 10 },
+                    somali: { students: 750, percentage: 5 }
+                },
+                totalELL: 15000,
+                totalLanguages: 90
+            },
+            {
+                name: "Prince George's County Public Schools",
+                state: "MD",
+                enrollment: 127576,
+                address: "14201 School Lane, Upper Marlboro, MD 20772",
+                phone: "(301) 952-6000",
+                website: "https://www.pgcps.org/",
+                lat: 38.8157,
+                lng: -76.7494,
+                type: "small",
+                languages: {
+                    spanish: { students: 15000, percentage: 65 },
+                    french: { students: 4600, percentage: 20 },
+                    amharic: { students: 1840, percentage: 8 },
+                    vietnamese: { students: 920, percentage: 4 }
+                },
+                totalELL: 23000,
+                totalLanguages: 120
+            },
+            {
+                name: "Shelby County Schools",
+                state: "TN",
+                enrollment: 115810,
+                address: "160 South Hollywood Street, Memphis, TN 38112",
+                phone: "(901) 416-5300",
+                website: "https://www.scsk12.org/",
+                lat: 35.1495,
+                lng: -90.0490,
+                type: "small",
+                languages: {
+                    spanish: { students: 8000, percentage: 80 },
+                    arabic: { students: 1000, percentage: 10 },
+                    somali: { students: 500, percentage: 5 }
+                },
+                totalELL: 10000,
+                totalLanguages: 60
+            },
+            {
+                name: "Cypress-Fairbanks Independent School District",
+                state: "TX",
+                enrollment: 113023,
+                address: "10300 Northwest Freeway, Houston, TX 77092",
+                phone: "(281) 897-4000",
+                website: "https://www.cfisd.net/",
+                lat: 29.8746,
+                lng: -95.5621,
+                type: "small",
+                languages: {
+                    spanish: { students: 25000, percentage: 85 },
+                    vietnamese: { students: 2200, percentage: 7.5 },
+                    chinese: { students: 1500, percentage: 5.1 },
+                    arabic: { students: 735, percentage: 2.5 }
+                },
+                totalELL: 29400,
+                totalLanguages: 80
+            },
+            {
+                name: "Baltimore County Public Schools",
+                state: "MD",
+                enrollment: 109830,
+                address: "6901 Charles Street, Towson, MD 21204",
+                phone: "(443) 809-5000",
+                website: "https://www.bcps.org/",
+                lat: 39.4040,
+                lng: -76.6105,
+                type: "small",
+                languages: {
+                    spanish: { students: 8000, percentage: 70 },
+                    chinese: { students: 1200, percentage: 10.5 },
+                    korean: { students: 800, percentage: 7 },
+                    vietnamese: { students: 570, percentage: 5 }
+                },
+                totalELL: 11400,
+                totalLanguages: 90
+            },
+            {
+                name: "Cobb County School District",
+                state: "GA",
+                enrollment: 111751,
+                address: "514 Glover Street, Marietta, GA 30060",
+                phone: "(770) 426-3300",
+                website: "https://www.cobbk12.org/",
+                lat: 33.9526,
+                lng: -84.5499,
+                type: "small",
+                languages: {
+                    spanish: { students: 12000, percentage: 75 },
+                    korean: { students: 1600, percentage: 10 },
+                    vietnamese: { students: 960, percentage: 6 },
+                    chinese: { students: 640, percentage: 4 }
+                },
+                totalELL: 16000,
+                totalLanguages: 100
+            },
+            {
+                name: "Northside Independent School District",
+                state: "TX",
+                enrollment: 103606,
+                address: "5900 Evers Road, San Antonio, TX 78238",
+                phone: "(210) 397-8500",
+                website: "https://www.nisd.net/",
+                lat: 29.4241,
+                lng: -98.4936,
+                type: "small",
+                languages: {
+                    spanish: { students: 18000, percentage: 85 },
+                    vietnamese: { students: 1600, percentage: 7.5 },
+                    chinese: { students: 850, percentage: 4 },
+                    korean: { students: 530, percentage: 2.5 }
+                },
+                totalELL: 21200,
+                totalLanguages: 70
+            },
+            
+            // Additional language-focused districts from the document
+            {
+                name: "Newark Public Schools",
+                state: "NJ",
+                enrollment: 35000,
+                address: "2 Cedar Street, Newark, NJ 07102",
+                phone: "(973) 733-7333",
+                website: "https://www.nps.k12.nj.us/",
+                lat: 40.7357,
+                lng: -74.1724,
+                type: "language",
+                languages: {
+                    spanish: { students: 4500, percentage: 70 },
+                    portuguese: { students: 900, percentage: 14 },
+                    french: { students: 650, percentage: 10 },
+                    arabic: { students: 390, percentage: 6 }
+                },
+                totalELL: 6440,
+                totalLanguages: 40,
+                programs: ["Portuguese", "French"]
+            },
+            {
+                name: "Jersey City Public Schools",
+                state: "NJ",
+                enrollment: 28000,
+                address: "346 Claremont Avenue, Jersey City, NJ 07305",
+                phone: "(201) 915-6000",
+                website: "https://www.jcboe.org/",
+                lat: 40.7178,
+                lng: -74.0431,
+                type: "language",
+                languages: {
+                    spanish: { students: 2800, percentage: 70 },
+                    arabic: { students: 560, percentage: 14 },
+                    chinese: { students: 400, percentage: 10 },
+                    tagalog: { students: 240, percentage: 6 }
+                },
+                totalELL: 4000,
+                totalLanguages: 40,
+                programs: ["Mandarin Chinese", "French", "Italian"]
+            },
+            {
+                name: "Garden Grove Unified School District",
+                state: "CA",
+                enrollment: 38000,
+                address: "10331 Stanford Avenue, Garden Grove, CA 92840",
+                phone: "(714) 663-6000",
+                website: "https://www.ggusd.k12.ca.us/",
+                lat: 33.7739,
+                lng: -117.9414,
+                type: "language",
+                languages: {
+                    vietnamese: { students: 3477, percentage: 9.2 },
+                    spanish: { students: 8000, percentage: 21.1 },
+                    korean: { students: 1500, percentage: 3.9 },
+                    chinese: { students: 1200, percentage: 3.2 }
+                },
+                totalELL: 11657,
+                totalLanguages: 30,
+                programs: ["Vietnamese Dual-Language Academy"],
+                specialization: "Largest Vietnamese community outside Vietnam"
+            },
+            {
+                name: "Anaheim Union High School District",
+                state: "CA",
+                enrollment: 30000,
+                address: "501 Crescent Way, Anaheim, CA 92803",
+                phone: "(714) 999-3511",
+                website: "https://www.auhsd.us/",
+                lat: 33.8358,
+                lng: -117.9147,
+                type: "language",
+                languages: {
+                    spanish: { students: 3600, percentage: 60 },
+                    vietnamese: { students: 900, percentage: 15 },
+                    tagalog: { students: 600, percentage: 10 },
+                    korean: { students: 480, percentage: 8 },
+                    arabic: { students: 420, percentage: 7 }
+                },
+                totalELL: 6000,
+                totalLanguages: 49
+            },
+            {
+                name: "Santa Ana Unified School District",
+                state: "CA",
+                enrollment: 45000,
+                address: "1601 East Chestnut Avenue, Santa Ana, CA 92701",
+                phone: "(714) 558-5501",
+                website: "https://www.sausd.us/",
+                lat: 33.7506,
+                lng: -117.8480,
+                type: "language",
+                languages: {
+                    spanish: { students: 16000, percentage: 87.8 },
+                    vietnamese: { students: 112, percentage: 0.6 },
+                    khmer: { students: 27, percentage: 0.1 }
+                },
+                totalELL: 18225,
+                totalLanguages: 25,
+                specialization: "93.1% Latino student body"
+            },
+            {
+                name: "San Francisco Unified School District",
+                state: "CA",
+                enrollment: 52000,
+                address: "555 Franklin Street, San Francisco, CA 94102",
+                phone: "(415) 241-6000",
+                website: "https://www.sfusd.edu/",
+                lat: 37.7749,
+                lng: -122.4194,
+                type: "language",
+                languages: {
+                    spanish: { students: 2400, percentage: 19.14 },
+                    chinese: { students: 1984, percentage: 15.88 },
+                    vietnamese: { students: 800, percentage: 6.4 },
+                    tagalog: { students: 600, percentage: 4.8 },
+                    arabic: { students: 500, percentage: 4.0 }
+                },
+                totalELL: 12500,
+                totalLanguages: 60
+            },
+            {
+                name: "Oakland Unified School District",
+                state: "CA",
+                enrollment: 36000,
+                address: "1000 Broadway, Oakland, CA 94607",
+                phone: "(510) 879-8200",
+                website: "https://www.ousd.org/",
+                lat: 37.8044,
+                lng: -122.2712,
+                type: "language",
+                languages: {
+                    spanish: { students: 8000, percentage: 67 },
+                    chinese: { students: 1500, percentage: 12.6 },
+                    vietnamese: { students: 1200, percentage: 10.1 },
+                    arabic: { students: 600, percentage: 5.0 },
+                    tagalog: { students: 600, percentage: 5.0 }
+                },
+                totalELL: 11900,
+                totalLanguages: 70
+            },
+            {
+                name: "San Jose Unified School District",
+                state: "CA",
+                enrollment: 28000,
+                address: "855 Lenzen Avenue, San Jose, CA 95126",
+                phone: "(408) 535-6000",
+                website: "https://www.sjusd.org/",
+                lat: 37.3382,
+                lng: -121.8863,
+                type: "language",
+                languages: {
+                    spanish: { students: 4500, percentage: 68.2 },
+                    vietnamese: { students: 143, percentage: 2.2 },
+                    chinese: { students: 98, percentage: 1.5 },
+                    korean: { students: 80, percentage: 1.2 }
+                },
+                totalELL: 6600,
+                totalLanguages: 50
+            },
+            {
+                name: "Alief Independent School District",
+                state: "TX",
+                enrollment: 45000,
+                address: "4250 Cook Road, Houston, TX 77072",
+                phone: "(281) 498-8110",
+                website: "https://www.aliefisd.net/",
+                lat: 29.6516,
+                lng: -95.5591,
+                type: "language",
+                languages: {
+                    spanish: { students: 18000, percentage: 69.2 },
+                    vietnamese: { students: 3900, percentage: 15.0 },
+                    arabic: { students: 2600, percentage: 10.0 },
+                    chinese: { students: 1300, percentage: 5.0 }
+                },
+                totalELL: 26000,
+                totalLanguages: 95,
+                programs: ["Vietnamese", "Arabic"],
+                specialization: "Most diverse district in nation - 95 languages, 88 ethnicities"
+            },
+            {
+                name: "Dearborn Public Schools",
+                state: "MI",
+                enrollment: 20000,
+                address: "18700 Audette Street, Dearborn, MI 48124",
+                phone: "(313) 827-3005",
+                website: "https://www.dearbornschools.org/",
+                lat: 42.3223,
+                lng: -83.1763,
+                type: "language",
+                languages: {
+                    arabic: { students: 9200, percentage: 46 },
+                    spanish: { students: 2000, percentage: 10 },
+                    bengali: { students: 800, percentage: 4 }
+                },
+                totalELL: 20000,
+                totalLanguages: 30,
+                programs: ["Arabic World Language", "Arab/Muslim Cultural Programs"],
+                specialization: "Highest per capita Arab American population - 90%+ Arabic origin in some schools"
+            },
+            {
+                name: "Detroit Public Schools Community District",
+                state: "MI",
+                enrollment: 47000,
+                address: "3011 West Grand Boulevard, Detroit, MI 48202",
+                phone: "(313) 873-7000",
+                website: "https://www.detroitk12.org/",
+                lat: 42.3314,
+                lng: -83.0458,
+                type: "language",
+                languages: {
+                    spanish: { students: 3500, percentage: 62.5 },
+                    arabic: { students: 1400, percentage: 25 },
+                    bengali: { students: 420, percentage: 7.5 },
+                    burmese: { students: 280, percentage: 5 }
+                },
+                totalELL: 5600,
+                totalLanguages: 40,
+                programs: ["Burmese Translation Services"]
+            },
+            {
+                name: "District of Columbia Public Schools",
+                state: "DC",
+                enrollment: 52000,
+                address: "1200 First Street NE, Washington, DC 20002",
+                phone: "(202) 442-5885",
+                website: "https://dcps.dc.gov/",
+                lat: 38.9072,
+                lng: -77.0369,
+                type: "language",
+                languages: {
+                    spanish: { students: 6720, percentage: 84 },
+                    amharic: { students: 480, percentage: 6 },
+                    french: { students: 400, percentage: 5 },
+                    chinese: { students: 240, percentage: 3 },
+                    vietnamese: { students: 160, percentage: 2 }
+                },
+                totalELL: 8000,
+                totalLanguages: 139,
+                specialization: "Major hub for Ethiopian diaspora"
+            },
+            {
+                name: "Boston Public Schools",
+                state: "MA",
+                enrollment: 54000,
+                address: "2300 Washington Street, Boston, MA 02119",
+                phone: "(617) 635-9000",
+                website: "https://www.bostonpublicschools.org/",
+                lat: 42.3601,
+                lng: -71.0589,
+                type: "language",
+                languages: {
+                    spanish: { students: 12000, percentage: 64 },
+                    chinese: { students: 2800, percentage: 15 },
+                    vietnamese: { students: 1500, percentage: 8 },
+                    french: { students: 1200, percentage: 6.4 },
+                    arabic: { students: 1000, percentage: 5.3 }
+                },
+                totalELL: 18750,
+                totalLanguages: 139
+            },
+            {
+                name: "Lowell Public Schools",
+                state: "MA",
+                enrollment: 13000,
+                address: "155 Merrimack Street, Lowell, MA 01852",
+                phone: "(978) 674-4000",
+                website: "https://www.lowell.k12.ma.us/",
+                lat: 42.6334,
+                lng: -71.3162,
+                type: "language",
+                languages: {
+                    spanish: { students: 2600, percentage: 20 },
+                    khmer: { students: 2600, percentage: 20 },
+                    portuguese: { students: 1950, percentage: 15 }
+                },
+                totalELL: 9100,
+                totalLanguages: 70,
+                specialization: "Critical target for Cambodian and Lusophone communities"
+            },
+            {
+                name: "Cambridge Public Schools",
+                state: "MA",
+                enrollment: 6000,
+                address: "159 Thorndike Street, Cambridge, MA 02141",
+                phone: "(617) 349-6400",
+                website: "https://www.cpsd.us/",
+                lat: 42.3736,
+                lng: -71.1097,
+                type: "language",
+                languages: {
+                    spanish: { students: 800, percentage: 40 },
+                    french: { students: 400, percentage: 20 },
+                    amharic: { students: 300, percentage: 15 },
+                    arabic: { students: 300, percentage: 15 },
+                    bengali: { students: 200, percentage: 10 }
+                },
+                totalELL: 2000,
+                totalLanguages: 30,
+                programs: ["Arabic", "Chinese World Language"]
+            }
+        ];
+
+        // US State coordinates for labels
+        const stateLabels = [
+            {name: "AL", lat: 32.806671, lng: -86.791130},
+            {name: "AZ", lat: 33.729759, lng: -111.431221},
+            {name: "AR", lat: 34.969704, lng: -92.373123},
+            {name: "CA", lat: 36.116203, lng: -119.681564},
+            {name: "CO", lat: 39.059811, lng: -105.311104},
+            {name: "CT", lat: 41.767, lng: -72.677},
+            {name: "DE", lat: 39.161921, lng: -75.526755},
+            {name: "FL", lat: 27.4518, lng: -82.4572},
+            {name: "GA", lat: 32.9866, lng: -83.6487},
+            {name: "ID", lat: 44.240459, lng: -114.478828},
+            {name: "IL", lat: 40.349457, lng: -88.986137},
+            {name: "IN", lat: 39.790942, lng: -86.147685},
+            {name: "IA", lat: 42.011539, lng: -93.210526},
+            {name: "KS", lat: 38.572954, lng: -98.580480},
+            {name: "KY", lat: 37.669037, lng: -84.670067},
+            {name: "LA", lat: 31.1801, lng: -91.8749},
+            {name: "ME", lat: 44.323535, lng: -69.765261},
+            {name: "MD", lat: 39.063946, lng: -76.802101},
+            {name: "MA", lat: 42.230171, lng: -71.530106},
+            {name: "MI", lat: 43.326618, lng: -84.536095},
+            {name: "MN", lat: 45.7326, lng: -93.9196},
+            {name: "MS", lat: 32.320, lng: -89.207},
+            {name: "MO", lat: 38.572954, lng: -92.189283},
+            {name: "MT", lat: 47.052952, lng: -109.633040},
+            {name: "NE", lat: 41.590939, lng: -99.675285},
+            {name: "NV", lat: 38.4199, lng: -117.1219},
+            {name: "NH", lat: 43.452492, lng: -71.563896},
+            {name: "NJ", lat: 40.221741, lng: -74.756138},
+            {name: "NM", lat: 34.307144, lng: -106.018066},
+            {name: "NY", lat: 42.659829, lng: -75.615},
+            {name: "NC", lat: 35.771, lng: -78.638},
+            {name: "ND", lat: 47.617, lng: -101.002},
+            {name: "OH", lat: 40.367474, lng: -82.996216},
+            {name: "OK", lat: 35.482309, lng: -97.534994},
+            {name: "OR", lat: 44.931109, lng: -123.029159},
+            {name: "PA", lat: 40.269789, lng: -76.875613},
+            {name: "RI", lat: 41.82355, lng: -71.422132},
+            {name: "SC", lat: 33.836082, lng: -81.163727},
+            {name: "SD", lat: 44.367966, lng: -99.901813},
+            {name: "TN", lat: 35.771, lng: -86.282},
+            {name: "TX", lat: 31.106, lng: -97.6475},
+            {name: "UT", lat: 39.161921, lng: -111.892622},
+            {name: "VT", lat: 44.26639, lng: -72.580536},
+            {name: "VA", lat: 37.54, lng: -78.86},
+            {name: "WA", lat: 47.042418, lng: -122.893077},
+            {name: "WV", lat: 38.349497, lng: -81.633294},
+            {name: "WI", lat: 44.268543, lng: -89.616508},
+            {name: "WY", lat: 42.906847, lng: -107.556085}
+        ];
+
+        // Initialize the map
+        const map = L.map('map').setView([39.8283, -98.5795], 4);
+
+        // Add tile layer
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+
+        // Store all markers for filtering
+        let allMarkers = [];
+        let currentFilter = '';
+
+        // Function to get marker color based on type and enrollment
+        function getMarkerColor(district) {
+            if (district.type === 'language') return '#9b59b6'; // Purple for language-focused
+            if (district.enrollment >= 500000) return '#e74c3c'; // Red for large
+            if (district.enrollment >= 200000) return '#f39c12'; // Orange for medium
+            return '#27ae60'; // Green for small
+        }
+
+        // Function to format enrollment number
+        function formatEnrollment(num) {
+            return num.toLocaleString();
+        }
+
+        // Function to check if district has significant presence of a language
+        function hasLanguage(district, language) {
+            if (!district.languages) return false;
+            
+            const lang = district.languages[language];
+            if (!lang) return false;
+            
+            // Consider significant if >100 students or >2% of ELL population
+            return lang.students > 100 || lang.percentage > 2;
+        }
+
+        // Function to create language info HTML
+        function createLanguageInfo(district) {
+            if (!district.languages) return '';
+            
+            let languageHtml = '<div class="language-info"><strong>🌐 Languages Spoken:</strong><br>';
+            
+            // Sort languages by number of students
+            const sortedLanguages = Object.entries(district.languages)
+                .sort((a, b) => b[1].students - a[1].students)
+                .slice(0, 8); // Show top 8 languages
+            
+            sortedLanguages.forEach(([lang, data]) => {
+                const langName = lang.charAt(0).toUpperCase() + lang.slice(1);
+                languageHtml += `<div class="language-list">• ${langName}: ${formatEnrollment(data.students)} students (${data.percentage}%)</div>`;
+            });
+            
+            if (district.totalELL) {
+                languageHtml += `<br><strong>Total ELL Students:</strong> ${formatEnrollment(district.totalELL)}`;
+            }
+            if (district.totalLanguages) {
+                languageHtml += `<br><strong>Total Languages:</strong> ${district.totalLanguages}`;
+            }
+            if (district.programs && district.programs.length > 0) {
+                languageHtml += `<br><strong>Special Programs:</strong> ${district.programs.join(', ')}`;
+            }
+            if (district.specialization) {
+                languageHtml += `<br><strong>Specialization:</strong> ${district.specialization}`;
+            }
+            
+            languageHtml += '</div>';
+            return languageHtml;
+        }
+
+        // Function to avoid overlapping markers
+        function adjustCoordinatesForOverlap(districts) {
+            const adjustedDistricts = [...districts];
+            const minDistance = 0.3;
+            
+            for (let i = 0; i < adjustedDistricts.length; i++) {
+                for (let j = i + 1; j < adjustedDistricts.length; j++) {
+                    const dist1 = adjustedDistricts[i];
+                    const dist2 = adjustedDistricts[j];
+                    
+                    const distance = Math.sqrt(
+                        Math.pow(dist1.lat - dist2.lat, 2) + 
+                        Math.pow(dist1.lng - dist2.lng, 2)
+                    );
+                    
+                    if (distance < minDistance) {
+                        const angle = Math.random() * 2 * Math.PI;
+                        const offset = minDistance * 0.6;
+                        adjustedDistricts[j].lat += Math.sin(angle) * offset;
+                        adjustedDistricts[j].lng += Math.cos(angle) * offset;
+                    }
+                }
+            }
+            
+            return adjustedDistricts;
+        }
+
+        // Adjust coordinates to prevent overlapping
+        const adjustedDistricts = adjustCoordinatesForOverlap(schoolDistricts);
+
+        // Add school district markers
+        adjustedDistricts.forEach((district, index) => {
+            const color = getMarkerColor(district);
+            
+            const marker = L.circleMarker([district.lat, district.lng], {
+                radius: Math.max(8, Math.min(20, district.enrollment / 50000)),
+                fillColor: color,
+                color: '#fff',
+                weight: 2,
+                opacity: 1,
+                fillOpacity: 0.8
+            }).addTo(map);
+
+            // Create popup content with language information
+            const languageInfo = createLanguageInfo(district);
+            const popupContent = `
+                <div class="popup-content">
+                    <h3>${district.name}</h3>
+                    <p><strong>📍 Address:</strong> ${district.address}</p>
+                    <p><strong>📞 Phone:</strong> ${district.phone}</p>
+                    <p><strong>🌐 Website:</strong> <a href="${district.website}" target="_blank">${district.website}</a></p>
+                    <p><strong>👥 Enrollment:</strong> ${formatEnrollment(district.enrollment)} students</p>
+                    <p><strong>🏛️ State:</strong> ${district.state}</p>
+                    <p><strong>📊 Type:</strong> ${district.type === 'language' ? 'Language-Focused District' : 
+                        district.enrollment >= 500000 ? 'Large District (500K+)' :
+                        district.enrollment >= 200000 ? 'Medium District (200K-500K)' : 'District (Under 200K)'}</p>
+                    ${languageInfo}
+                </div>
+            `;
+
+            marker.bindPopup(popupContent, {
+                maxWidth: 350,
+                className: 'custom-popup',
+                closeButton: false,
+                autoClose: true,
+                closeOnEscapeKey: true
+            });
+
+            // Add hover events
+            marker.on('mouseover', function(e) {
+                this.setStyle({
+                    weight: 4,
+                    fillOpacity: 1,
+                    radius: this.options.radius * 1.3
+                });
+                this.openPopup();
+            });
+
+            marker.on('mouseout', function(e) {
+                this.setStyle({
+                    weight: 2,
+                    fillOpacity: 0.8,
+                    radius: this.options.radius / 1.3
+                });
+                setTimeout(() => {
+                    this.closePopup();
+                }, 100);
+            });
+
+            // Store reference for filtering
+            marker.districtData = district;
+            marker.districtIndex = index;
+            allMarkers.push(marker);
+        });
+
+        // Add state labels
+        stateLabels.forEach(state => {
+            L.marker([state.lat, state.lng], {
+                icon: L.divIcon({
+                    className: 'state-label',
+                    html: state.name,
+                    iconSize: [30, 20],
+                    iconAnchor: [15, 10]
+                })
+            }).addTo(map);
+        });
+
+        // Language filtering functionality
+        function filterByLanguage(language) {
+            currentFilter = language;
+            let matchingDistricts = 0;
+            
+            allMarkers.forEach(marker => {
+                const district = marker.districtData;
+                const hasLang = hasLanguage(district, language);
+                
+                if (language === '' || hasLang) {
+                    marker.setStyle({ opacity: 1, fillOpacity: 0.8 });
+                    matchingDistricts++;
+                } else {
+                    marker.setStyle({ opacity: 0.3, fillOpacity: 0.2 });
+                }
+            });
+            
+            // Update district list
+            updateDistrictList(language);
+            
+            // Update filter results
+            const resultsDiv = document.getElementById('filter-results');
+            if (language) {
+                resultsDiv.innerHTML = `Found ${matchingDistricts} districts with significant ${language.charAt(0).toUpperCase() + language.slice(1)} populations`;
+            } else {
+                resultsDiv.innerHTML = '';
+            }
+        }
+
+        // Update district list based on filter
+        function updateDistrictList(language) {
+            const districtList = document.getElementById('district-list');
+            districtList.innerHTML = '';
+            
+            let filteredDistricts = schoolDistricts;
+            if (language) {
+                filteredDistricts = schoolDistricts.filter(district => hasLanguage(district, language));
+            }
+            
+            // Sort by enrollment
+            filteredDistricts.sort((a, b) => b.enrollment - a.enrollment);
+            
+            filteredDistricts.forEach((district, index) => {
+                const districtItem = document.createElement('div');
+                districtItem.className = 'district-item';
+                
+                let languageDetail = '';
+                if (language && district.languages && district.languages[language]) {
+                    const langData = district.languages[language];
+                    languageDetail = `<br><small style="color: #3498db;">${language.charAt(0).toUpperCase() + language.slice(1)}: ${formatEnrollment(langData.students)} students (${langData.percentage}%)</small>`;
+                }
+                
+                districtItem.innerHTML = `
+                    <strong>${district.name}</strong><br>
+                    <small>${district.state} • ${formatEnrollment(district.enrollment)} students</small>
+                    ${languageDetail}
+                `;
+                
+                districtItem.addEventListener('click', () => {
+                    map.setView([district.lat, district.lng], 10);
+                    
+                    // Find and trigger hover on the corresponding marker
+                    allMarkers.forEach(marker => {
+                        if (marker.districtData.name === district.name) {
+                            marker.fire('mouseover');
+                            setTimeout(() => {
+                                marker.fire('mouseout');
+                            }, 3000);
+                        }
+                    });
+                });
+                
+                districtList.appendChild(districtItem);
+            });
+        }
+
+        // Clear all filters
+        function clearAllFilters() {
+            currentFilter = '';
+            document.getElementById('languageSelect').value = '';
+            document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+            filterByLanguage('');
+        }
+
+        // Event listeners
+        document.getElementById('languageSelect').addEventListener('change', function() {
+            const language = this.value;
+            document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+            if (language) {
+                const btn = document.querySelector(`[data-language="${language}"]`);
+                if (btn) btn.classList.add('active');
+            }
+            filterByLanguage(language);
+        });
+
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const language = this.dataset.language;
+                document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                document.getElementById('languageSelect').value = language;
+                filterByLanguage(language);
+            });
+        });
+
+        // Initialize district list
+        updateDistrictList('');
+
+        // Add zoom controls
+        map.zoomControl.setPosition('topright');
+
+        // Add scale
+        L.control.scale().addTo(map);
+
+        console.log('Enhanced Language Demographics Map loaded successfully!');
+        console.log(`Displaying ${schoolDistricts.length} school districts with language data`);
+    </script>
 </body>
 </html>
+
